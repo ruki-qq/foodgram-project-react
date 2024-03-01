@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.validators import UnicodeUsernameValidator
+from djoser import serializers as dj_serializers
 from rest_framework import serializers
 
 
@@ -31,8 +32,11 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class MyTokenObtainSerializer(serializers.Serializer):
-    username = serializers.CharField(
+    email = serializers.EmailField(
         max_length=settings.USERNAME_MAX_LEN,
         validators=[UnicodeUsernameValidator()],
     )
-    confirmation_code = serializers.CharField()
+    password = serializers.CharField(
+        max_length=settings.PASSWORD_MAX_LEN,
+        style={'input_type': 'password'},
+    )
