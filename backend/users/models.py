@@ -4,6 +4,8 @@ from django.db import models
 
 
 class CustomUserManager(UserManager):
+    """Custom user manager."""
+
     def get_by_natural_key(self, username):
         return self.get(**{self.model.EMAIL_FIELD: username})
 
@@ -12,6 +14,8 @@ class User(AbstractUser):
     """Custom user model."""
 
     password = models.CharField('Пароль', max_length=settings.PASSWORD_MAX_LEN)
+
+    following = models.ManyToManyField('self', symmetrical=False)
 
     objects = CustomUserManager()
 
