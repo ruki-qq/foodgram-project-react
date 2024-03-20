@@ -32,7 +32,7 @@ services:
       - frontend
       - backend
     ports:
-      - "80:80"
+      - "10000:80"
     volumes:
       - frontend:/var/www/frontend/
       - static:/var/html/static/
