@@ -84,13 +84,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
         if not user.shopping_cart.exists():
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        key_names = {'ingredient__name': 'Ингредиент', 'amount': 'Количество'}
+        key_names = {
+            'ingredient__name': 'Ингредиент',
+            'ingredient__measurement_unit': 'Мера измерения',
+            'amount': 'Количество',
+        }
 
         ingredients = (
             IngredientQuantity.objects.filter(
                 recipe__shopping_cart__id=user.id
             )
-            .values('ingredient__name')
+            .values('ingredient__name', 'ingredient__measurement_unit')
             .annotate(amount=Sum('amount'))
         )
 

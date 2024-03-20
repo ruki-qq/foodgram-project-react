@@ -135,6 +135,6 @@ jobs:
         to: ${{ secrets.TELEGRAM_TO }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
         message:
-          Деплой kittygram успешно выполнен! Инициатор workflow - ${{ github.actor }}
+          Деплой foodgram успешно выполнен! Инициатор workflow - ${{ github.actor }}
           Коммит - https://github.com/${{ github.repository }}/commit/${{ github.sha }}
           Описание коммита - ${{ github.event.commits[0].message }}
