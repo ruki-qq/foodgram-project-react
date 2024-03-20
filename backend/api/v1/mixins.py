@@ -1,11 +1,5 @@
-from rest_framework import filters, mixins, viewsets
+from drf_extra_fields.fields import Base64ImageField
 
 
-class BaseTagViewSet(
-    mixins.ListModelMixin,
-    mixins.RetrieveModelMixin,
-    viewsets.GenericViewSet,
-):
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['name']
-    lookup_field = 'slug'
+class CustomBase64ImageField(Base64ImageField):
+    EMPTY_VALUES = ()

@@ -1,19 +1,15 @@
-from os import getenv
+import os
 from pathlib import Path
 
-from dotenv import load_dotenv
-
-load_dotenv()
+from django.core.management.utils import get_random_secret_key
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = (
-    'django-insecure-#p2y-=bwwoz)2*s_r=%gjkny17j!d9ritpz3bt9ky(#qytfl=b'
-)
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', get_random_secret_key())
 
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
 
 INSTALLED_APPS = [
@@ -26,9 +22,12 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'djoser',
+    'django_filters',
+    'colorfield',
     'api',
     'users',
     'recipes',
+    'core',
 ]
 
 MIDDLEWARE = [
@@ -65,20 +64,17 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': getenv('POSTGRES_DB', 'django'),
-        'USER': getenv('POSTGRES_USER', 'django'),
-        'PASSWORD': getenv('POSTGRES_PASSWORD', 'django'),
-        'HOST': getenv('DB_HOST', 'django'),
-        'PORT': getenv('DB_PORT', 5432),
+        'NAME': os.getenv('POSTGRES_DB', 'django'),
+        'USER': os.getenv('POSTGRES_USER', 'django'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'django'),
+        'HOST': os.getenv('DB_HOST', 'django'),
+        'PORT': os.getenv('DB_PORT', 5432),
     }
 }
 
 AUTH_USER_MODEL = 'users.User'
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
     {
         'NAME': (
             'django.contrib.auth.password_validation.MinimumLengthValidator'
@@ -107,8 +103,11 @@ USE_L10N = True
 
 USE_TZ = True
 
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'collected_static'
 
-STATIC_URL = 'static/'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -116,9 +115,7 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.TokenAuthentication',
     ),
-    'DEFAULT_PAGINATION_CLASS': (
-        'rest_framework.pagination.PageNumberPagination'
-    ),
+    'DEFAULT_PAGINATION_CLASS': 'api.v1.pagination.CustomPageNumberPagination',
     'PAGE_SIZE': 6,
 }
 
@@ -129,6 +126,8 @@ DJOSER = {
 EMAIL_MAX_LEN = 254
 PASSWORD_MAX_LEN = 150
 USERNAME_MAX_LEN = 150
+FIRST_NAME_MAX_LEN = 150
+LAST_NAME_MAX_LEN = 150
 
 RECIPE_NAME_MAX_LEN = 200
 TAG_NAME_MAX_LEN = 200
