@@ -39,4 +39,4 @@ services:
       - frontend:/var/www/frontend/
       - static:/var/html/static/
       - media:/var/html/media/
-      - ../docs/:/var/html/api/docs/
+      - .docs/:/var/html/api/docs/
