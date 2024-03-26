@@ -7,7 +7,6 @@ from rest_framework.decorators import action
 from api.v1.serializers import (
     SaveSubscriptionSerializer,
     SubscriptionSerializer,
-    UserSerializer,
 )
 from core.utils import add_obj, remove_obj
 

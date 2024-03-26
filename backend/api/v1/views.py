@@ -12,7 +12,6 @@ from api.v1.serializers import (
     ReadRecipeSerializer,
     SaveFavoriteSerializer,
     SaveShoppingCartSerializer,
-    ShortRecipeSerializer,
     TagSerializer,
     WriteRecipeSerializer,
 )
