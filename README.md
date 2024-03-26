@@ -2,7 +2,7 @@
 # Foodgram
 
 
-### Deployed at: https://rufoodgram.duckdns.org/
+### Domain address: https://rufoodgram.duckdns.org/
 
 ### Credentials
 ```
