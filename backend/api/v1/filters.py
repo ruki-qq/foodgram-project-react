@@ -7,6 +7,8 @@ User = get_user_model()
 
 
 class IngredientFilter(FilterSet):
+    """Filter for searching ingredients by name."""
+
     name = filters.CharFilter(lookup_expr='istartswith')
 
     class Meta:
@@ -15,6 +17,10 @@ class IngredientFilter(FilterSet):
 
 
 class RecipeFilter(FilterSet):
+    """Filter for searching recipes by author, tags.
+    Also filters recipes by is_favorited and is_in_shopping_cart.
+    """
+
     tags = filters.AllValuesMultipleFilter(field_name='tags__slug')
     is_favorited = filters.BooleanFilter(method='filter_is_favorited')
     is_in_shopping_cart = filters.BooleanFilter(

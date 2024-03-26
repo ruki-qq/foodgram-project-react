@@ -19,6 +19,8 @@ User = get_user_model()
 
 
 class IngredientsField(serializers.Field):
+    """Custom field for ingredients."""
+
     default_error_messages = {
         'empty_list': 'Не выбрано ни одного ингредиента.',
         'incorrect_type': (
@@ -69,6 +71,8 @@ class IngredientsField(serializers.Field):
 
 
 class TagsField(serializers.Field):
+    """Custom field for tags."""
+
     default_error_messages = {
         'empty_list': 'Не выбрано ни одного тега.',
         'incorrect_type': (
@@ -131,6 +135,8 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class SubscriptionSerializer(UserSerializer):
+    """Serializer for subscriptions endpoints."""
+
     recipes = serializers.SerializerMethodField()
     recipes_count = serializers.SerializerMethodField()
 
@@ -170,6 +176,8 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 class ShortRecipeSerializer(serializers.ModelSerializer):
+    """Serializer for providing recipe shortcut in some endpoints."""
+
     image = CustomBase64ImageField()
 
     class Meta:
@@ -179,6 +187,8 @@ class ShortRecipeSerializer(serializers.ModelSerializer):
 
 
 class ReadRecipeSerializer(ShortRecipeSerializer):
+    """Serializer for providing full recipe data."""
+
     ingredients = IngredientsField()
     tags = TagsField()
     author = UserSerializer(read_only=True)
@@ -207,6 +217,8 @@ class ReadRecipeSerializer(ShortRecipeSerializer):
 
 
 class WriteRecipeSerializer(ReadRecipeSerializer):
+    """Serializer for saving and updating recipes."""
+
     @atomic
     def create(self, validated_data):
         request = self.context.get('request')
@@ -249,6 +261,8 @@ class WriteRecipeSerializer(ReadRecipeSerializer):
 
 
 class SaveFavoriteSerializer(serializers.ModelSerializer):
+    """Serializer for saving user's favorite recipes."""
+
     class Meta:
         model = FavoriteRecipes
         fields = '__all__'
@@ -258,12 +272,16 @@ class SaveFavoriteSerializer(serializers.ModelSerializer):
 
 
 class SaveShoppingCartSerializer(SaveFavoriteSerializer):
+    """Serializer for adding recipes to user's shopping cart."""
+
     class Meta:
         model = ShoppingCart
         fields = '__all__'
 
 
 class SaveSubscriptionSerializer(serializers.ModelSerializer):
+    """Serializer for saving users subscriptions."""
+
     class Meta:
         model = FollowRelationship
         exclude = ['created_at']
