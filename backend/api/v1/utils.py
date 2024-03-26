@@ -1,17 +1,36 @@
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
-from rest_framework.serializers import (
-    ValidationError as SerializerValidationError,
-)
+from rest_framework import status
+from rest_framework.response import Response
+
+from recipes.models import IngredientQuantity
 
 
-def validate_pwd(password):
-    """If password is valid returns it.
-    If password is invalid raises SerializerValidationError.
-    """
+def add_obj(serializer):
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(
+        serializer.data,
+        status=status.HTTP_201_CREATED,
+    )
 
-    try:
-        validate_password(password)
-    except ValidationError as err:
-        raise SerializerValidationError(err.messages)
-    return password
+
+def remove_obj(field, obj_id, obj_name='Объект'):
+    if not field.filter(id=obj_id).exists():
+        return Response(
+            {'errors': f'{obj_name} с таким ID не найден!'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    field.remove(obj_id)
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def ingredientquantity_bulk_create(recipe, ingredients):
+    IngredientQuantity.objects.bulk_create(
+        [
+            IngredientQuantity(
+                recipe=recipe,
+                ingredient_id=ing['id'],
+                amount=ing['amount'],
+            )
+            for ing in ingredients
+        ]
+    )

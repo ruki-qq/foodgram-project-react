@@ -15,7 +15,7 @@ from api.v1.serializers import (
     TagSerializer,
     WriteRecipeSerializer,
 )
-from core.utils import add_obj, get_object_by_id_or_400, remove_obj
+from api.v1.utils import add_obj, remove_obj
 from recipes.models import Ingredient, IngredientQuantity, Recipe, Tag
 
 
@@ -56,7 +56,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         permission_classes=[permissions.IsAuthenticated],
     )
     def add_favorite_recipe(self, request, recipe_id):
-        get_object_by_id_or_400(Recipe, recipe_id, 'Рецепт')
         return add_obj(
             SaveFavoriteSerializer(
                 data={'user': request.user.id, 'recipe': recipe_id}
@@ -77,7 +76,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         permission_classes=[permissions.IsAuthenticated],
     )
     def add_shopping_cart(self, request, recipe_id):
-        get_object_by_id_or_400(Recipe, recipe_id, 'Рецепт')
         return add_obj(
             SaveShoppingCartSerializer(
                 data={'user': request.user.id, 'recipe': recipe_id}

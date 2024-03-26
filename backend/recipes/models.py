@@ -70,8 +70,14 @@ class Recipe(models.Model):
     cooking_time = models.PositiveSmallIntegerField(
         'Время приготовления',
         validators=[
-            MinValueValidator(1, constants.RECIPE_CKN_TIME_MIN_ERR_MSG),
-            MaxValueValidator(32_000, constants.RECIPE_CKN_TIME_MAX_ERR_MSG),
+            MinValueValidator(
+                constants.RECIPE_CKN_TIME_MIN,
+                constants.RECIPE_CKN_TIME_MIN_ERR_MSG,
+            ),
+            MaxValueValidator(
+                constants.RECIPE_CKN_TIME_MAX,
+                constants.RECIPE_CKN_TIME_MAX_ERR_MSG,
+            ),
         ],
     )
     image = models.ImageField('Изображение', upload_to='api/imgs/')
@@ -162,8 +168,12 @@ class IngredientQuantity(models.Model):
         'Количество',
         default=1,
         validators=[
-            MinValueValidator(1, constants.ING_AMOUNT_MIN_ERR_MSG),
-            MaxValueValidator(32_000, constants.ING_AMOUNT_MAX_ERR_MSG),
+            MinValueValidator(
+                constants.ING_AMOUNT_MIN, constants.ING_AMOUNT_MIN_ERR_MSG
+            ),
+            MaxValueValidator(
+                constants.ING_AMOUNT_MAX, constants.ING_AMOUNT_MAX_ERR_MSG
+            ),
         ],
     )
 

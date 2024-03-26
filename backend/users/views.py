@@ -8,7 +8,7 @@ from api.v1.serializers import (
     SaveSubscriptionSerializer,
     SubscriptionSerializer,
 )
-from core.utils import add_obj, remove_obj
+from api.v1.utils import add_obj, remove_obj
 
 User = get_user_model()
 

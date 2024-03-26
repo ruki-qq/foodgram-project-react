@@ -4,11 +4,10 @@ from django.db.transaction import atomic
 from rest_framework import serializers
 
 from api.v1.mixins import CustomBase64ImageField
-from api.v1.utils import validate_pwd
+from api.v1.utils import ingredientquantity_bulk_create
 from recipes.models import (
     FavoriteRecipes,
     Ingredient,
-    IngredientQuantity,
     Recipe,
     ShoppingCart,
     Tag,
@@ -130,9 +129,6 @@ class UserSerializer(serializers.ModelSerializer):
             and request.user.following.filter(id=user.id).exists()
         )
 
-    def validate_password(self, password):
-        return validate_pwd(password)
-
 
 class SubscriptionSerializer(UserSerializer):
     """Serializer for subscriptions endpoints."""
@@ -150,7 +146,7 @@ class SubscriptionSerializer(UserSerializer):
         limit = self.context.get('request').GET.get('recipes_limit')
         try:
             recipes = user.recipes.all()[: int(limit)]
-        except TypeError:
+        except (TypeError, ValueError):
             recipes = user.recipes.all()
 
         serializer = ShortRecipeSerializer(recipes, many=True, read_only=True)
@@ -166,13 +162,13 @@ class SubscriptionSerializer(UserSerializer):
 class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
-        fields = '__all__'
+        fields = ['id', 'name', 'measurement_unit']
 
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
-        fields = '__all__'
+        fields = ['id', 'name', 'color', 'slug']
 
 
 class ShortRecipeSerializer(serializers.ModelSerializer):
@@ -227,16 +223,7 @@ class WriteRecipeSerializer(ReadRecipeSerializer):
         recipe = Recipe(author=request.user, **validated_data)
         recipe.save()
         recipe.tags.set(tags)
-        IngredientQuantity.objects.bulk_create(
-            [
-                IngredientQuantity(
-                    recipe=recipe,
-                    ingredient_id=ing['id'],
-                    amount=ing['amount'],
-                )
-                for ing in ingredients
-            ]
-        )
+        ingredientquantity_bulk_create(recipe, ingredients)
         request.user.favorites.add(recipe.id)
         return recipe
 
@@ -247,16 +234,7 @@ class WriteRecipeSerializer(ReadRecipeSerializer):
             instance=instance, validated_data=validated_data
         )
         instance.ingredients.clear()
-        IngredientQuantity.objects.bulk_create(
-            [
-                IngredientQuantity(
-                    recipe=instance,
-                    ingredient_id=ing['id'],
-                    amount=ing['amount'],
-                )
-                for ing in ingredients
-            ]
-        )
+        ingredientquantity_bulk_create(instance, ingredients)
         return instance
 
 
@@ -265,7 +243,7 @@ class SaveFavoriteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FavoriteRecipes
-        fields = '__all__'
+        fields = ['user', 'recipe']
 
     def to_representation(self, instance):
         return ShortRecipeSerializer(instance.recipe).data
@@ -276,7 +254,7 @@ class SaveShoppingCartSerializer(SaveFavoriteSerializer):
 
     class Meta:
         model = ShoppingCart
-        fields = '__all__'
+        fields = ['user', 'recipe']
 
 
 class SaveSubscriptionSerializer(serializers.ModelSerializer):
