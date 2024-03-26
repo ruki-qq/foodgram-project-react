@@ -1,13 +1,7 @@
-from django.conf import settings
-from django.contrib.auth.models import AbstractUser, UserManager
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 
-
-class CustomUserManager(UserManager):
-    """Custom user manager."""
-
-    def get_by_natural_key(self, username):
-        return self.get(**{self.model.EMAIL_FIELD: username})
+from core import constants
 
 
 class User(AbstractUser):
@@ -15,23 +9,17 @@ class User(AbstractUser):
 
     email = models.EmailField(
         'Электронная почта',
-        max_length=settings.EMAIL_MAX_LEN,
         unique=True,
     )
 
     first_name = models.CharField(
         'Имя',
-        max_length=settings.FIRST_NAME_MAX_LEN,
+        max_length=constants.FIRST_NAME_MAX_LEN,
     )
 
     last_name = models.CharField(
         'Фамилия',
-        max_length=settings.LAST_NAME_MAX_LEN,
-    )
-
-    password = models.CharField(
-        'Пароль',
-        max_length=settings.PASSWORD_MAX_LEN,
+        max_length=constants.LAST_NAME_MAX_LEN,
     )
 
     followers = models.ManyToManyField(
@@ -42,7 +30,8 @@ class User(AbstractUser):
         blank=True,
     )
 
-    objects = CustomUserManager()
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
 
     class Meta:
         ordering = ['username']

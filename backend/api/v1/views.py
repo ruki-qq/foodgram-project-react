@@ -9,10 +9,14 @@ from api.v1.filters import IngredientFilter, RecipeFilter
 from api.v1.permissions import IsOwnerOrReadOnly
 from api.v1.serializers import (
     IngredientSerializer,
-    RecipeSerializer,
+    ReadRecipeSerializer,
+    SaveFavoriteSerializer,
+    SaveShoppingCartSerializer,
+    ShortRecipeSerializer,
     TagSerializer,
+    WriteRecipeSerializer,
 )
-from core.utils import add_rm_recipe
+from core.utils import add_obj, get_object_by_id_or_400, remove_obj
 from recipes.models import Ingredient, IngredientQuantity, Recipe, Tag
 
 
@@ -33,42 +37,58 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
-    serializer_class = RecipeSerializer
     permission_classes = [IsOwnerOrReadOnly]
     filter_backends = [DjangoFilterBackend]
     filterset_class = RecipeFilter
+
+    def get_serializer_class(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return ReadRecipeSerializer
+        return WriteRecipeSerializer
 
     def update(self, request, *args, **kwargs):
         return super().update(request, partial=False)
 
     @action(
         detail=False,
-        methods=['post', 'delete'],
+        methods=['post'],
         url_path=r'(?P<recipe_id>\w+)/favorite',
         url_name='favorite',
         permission_classes=[permissions.IsAuthenticated],
     )
-    def add_rm_favorite_recipe(self, request, recipe_id):
-        return add_rm_recipe(
-            request.user.favorites,
-            recipe_id,
-            request.method,
-            'Избранный рецепт',
+    def add_favorite_recipe(self, request, recipe_id):
+        get_object_by_id_or_400(Recipe, recipe_id, 'Рецепт')
+        return add_obj(
+            SaveFavoriteSerializer(
+                data={'user': request.user.id, 'recipe': recipe_id}
+            )
+        )
+
+    @add_favorite_recipe.mapping.delete
+    def rm_favorite_recipe(self, request, recipe_id):
+        return remove_obj(
+            request.user.favorites, recipe_id, 'Избранный рецепт'
         )
 
     @action(
         detail=False,
-        methods=['post', 'delete'],
+        methods=['post'],
         url_path=r'(?P<recipe_id>\w+)/shopping_cart',
         url_name='shopping_cart',
         permission_classes=[permissions.IsAuthenticated],
     )
-    def add_rm_shopping_cart(self, request, recipe_id):
-        return add_rm_recipe(
-            request.user.shopping_cart,
-            recipe_id,
-            request.method,
-            'Рецепт в корзине покупок',
+    def add_shopping_cart(self, request, recipe_id):
+        get_object_by_id_or_400(Recipe, recipe_id, 'Рецепт')
+        return add_obj(
+            SaveShoppingCartSerializer(
+                data={'user': request.user.id, 'recipe': recipe_id}
+            )
+        )
+
+    @add_shopping_cart.mapping.delete
+    def rm_shopping_cart(self, request, recipe_id):
+        return remove_obj(
+            request.user.shopping_cart, recipe_id, 'Рецепт в корзине покупок'
         )
 
     @action(

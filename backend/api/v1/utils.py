@@ -6,7 +6,12 @@ from rest_framework.serializers import (
 
 
 def validate_pwd(password):
+    """If password is valid returns it.
+    If password is invalid raises SerializerValidationError.
+    """
+
     try:
         validate_password(password)
     except ValidationError as err:
         raise SerializerValidationError(err.messages)
+    return password

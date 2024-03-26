@@ -7,7 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', get_random_secret_key())
 
-DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
@@ -77,6 +77,11 @@ DATABASES = {
         'HOST': os.getenv('DB_HOST', 'django'),
         'PORT': os.getenv('DB_PORT', 5432),
     }
+    if os.getenv('PG_DB', 'False').lower() == 'true'
+    else {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 }
 
 AUTH_USER_MODEL = 'users.User'
@@ -127,17 +132,14 @@ REST_FRAMEWORK = {
 }
 
 DJOSER = {
+    'SERIALIZERS': {
+        'user': 'api.v1.serializers.UserSerializer',
+        'current_user': 'api.v1.serializers.UserSerializer',
+    },
+    'HIDE_USERS': False,
+    'PERMISSIONS': {
+        'user': ['rest_framework.permissions.AllowAny'],
+        'user_list': ['rest_framework.permissions.AllowAny'],
+    },
     'LOGIN_FIELD': 'email',
 }
-
-EMAIL_MAX_LEN = 254
-PASSWORD_MAX_LEN = 150
-USERNAME_MAX_LEN = 150
-FIRST_NAME_MAX_LEN = 150
-LAST_NAME_MAX_LEN = 150
-
-RECIPE_NAME_MAX_LEN = 200
-TAG_NAME_MAX_LEN = 200
-TAG_COLOR_MAX_LEN = 7
-ING_NAME_MAX_LEN = 200
-ING_MES_MAX_LEN = 200

@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db.models import F
 from django.db.transaction import atomic
@@ -6,7 +5,15 @@ from rest_framework import serializers
 
 from api.v1.mixins import CustomBase64ImageField
 from api.v1.utils import validate_pwd
-from recipes.models import Ingredient, IngredientQuantity, Recipe, Tag
+from recipes.models import (
+    FavoriteRecipes,
+    Ingredient,
+    IngredientQuantity,
+    Recipe,
+    ShoppingCart,
+    Tag,
+)
+from users.models import FollowRelationship
 
 User = get_user_model()
 
@@ -96,12 +103,6 @@ class TagsField(serializers.Field):
 
 class UserSerializer(serializers.ModelSerializer):
     is_subscribed = serializers.SerializerMethodField()
-    password = serializers.CharField(
-        required=True,
-        max_length=settings.PASSWORD_MAX_LEN,
-        validators=[validate_pwd],
-        write_only=True,
-    )
 
     class Meta:
         model = User
@@ -115,51 +116,18 @@ class UserSerializer(serializers.ModelSerializer):
             'is_subscribed',
         ]
         read_only_fields = ['id', 'is_subscribed']
+        extra_kwargs = {'password': {'write_only': True}}
 
     def get_is_subscribed(self, user):
         request = self.context.get('request')
-        if not request.user.is_anonymous:
-            return request.user.following.filter(id=user.id).exists()
-        return False
-
-    def create(self, validated_data):
-        return User.objects.create_user(
-            email=validated_data['email'],
-            password=validated_data['password'],
-            username=validated_data['username'],
-            first_name=validated_data['first_name'],
-            last_name=validated_data['last_name'],
+        return (
+            request
+            and request.user.is_authenticated
+            and request.user.following.filter(id=user.id).exists()
         )
 
-    def to_representation(self, user):
-        data = super().to_representation(user)
-        if self.context.get('request').method == 'POST':
-            data.pop('is_subscribed', None)
-        return data
-
-
-class ChangePasswordSerializer(serializers.Serializer):
-    model = User
-
-    current_password = serializers.CharField(
-        required=True,
-        max_length=settings.PASSWORD_MAX_LEN,
-        validators=[validate_pwd],
-    )
-    new_password = serializers.CharField(
-        required=True,
-        max_length=settings.PASSWORD_MAX_LEN,
-        validators=[validate_pwd],
-    )
-
-    def validate(self, data):
-        if not self.context.get('request').user.check_password(
-            data.get('current_password')
-        ):
-            raise serializers.ValidationError(
-                {'current_password': ['Неверный пароль.']},
-            )
-        return data
+    def validate_password(self, password):
+        return validate_pwd(password)
 
 
 class SubscriptionSerializer(UserSerializer):
@@ -174,9 +142,11 @@ class SubscriptionSerializer(UserSerializer):
 
     def get_recipes(self, user):
         limit = self.context.get('request').GET.get('recipes_limit')
-        recipes = (
-            user.recipes.all()[: int(limit)] if limit else user.recipes.all()
-        )
+        try:
+            recipes = user.recipes.all()[: int(limit)]
+        except TypeError:
+            recipes = user.recipes.all()
+
         serializer = ShortRecipeSerializer(recipes, many=True, read_only=True)
         return serializer.data
 
@@ -208,7 +178,7 @@ class ShortRecipeSerializer(serializers.ModelSerializer):
         read_only_fields = ['__all__']
 
 
-class RecipeSerializer(ShortRecipeSerializer):
+class ReadRecipeSerializer(ShortRecipeSerializer):
     ingredients = IngredientsField()
     tags = TagsField()
     author = UserSerializer(read_only=True)
@@ -221,20 +191,22 @@ class RecipeSerializer(ShortRecipeSerializer):
 
     def get_is_favorited(self, recipe):
         request = self.context.get('request')
-
-        if not request.user.is_anonymous:
-            if request.user in recipe.favorites.all():
-                return True
-        return False
+        return (
+            request
+            and request.user.is_authenticated
+            and request.user in recipe.favorites.all()
+        )
 
     def get_is_in_shopping_cart(self, recipe):
         request = self.context.get('request')
+        return (
+            request
+            and request.user.is_authenticated
+            and request.user in recipe.shopping_cart.all()
+        )
 
-        if not request.user.is_anonymous:
-            if request.user in recipe.shopping_cart.all():
-                return True
-        return False
 
+class WriteRecipeSerializer(ReadRecipeSerializer):
     @atomic
     def create(self, validated_data):
         request = self.context.get('request')
@@ -243,12 +215,16 @@ class RecipeSerializer(ShortRecipeSerializer):
         recipe = Recipe(author=request.user, **validated_data)
         recipe.save()
         recipe.tags.set(tags)
-        for ing in ingredients:
-            IngredientQuantity.objects.create(
-                recipe=recipe,
-                ingredient=Ingredient.objects.filter(id=ing['id']).first(),
-                amount=ing['amount'],
-            )
+        IngredientQuantity.objects.bulk_create(
+            [
+                IngredientQuantity(
+                    recipe=recipe,
+                    ingredient_id=ing['id'],
+                    amount=ing['amount'],
+                )
+                for ing in ingredients
+            ]
+        )
         request.user.favorites.add(recipe.id)
         return recipe
 
@@ -259,10 +235,47 @@ class RecipeSerializer(ShortRecipeSerializer):
             instance=instance, validated_data=validated_data
         )
         instance.ingredients.clear()
-        for ing in ingredients:
-            IngredientQuantity.objects.create(
-                recipe=instance,
-                ingredient=Ingredient.objects.filter(id=ing['id']).first(),
-                amount=ing['amount'],
-            )
+        IngredientQuantity.objects.bulk_create(
+            [
+                IngredientQuantity(
+                    recipe=instance,
+                    ingredient_id=ing['id'],
+                    amount=ing['amount'],
+                )
+                for ing in ingredients
+            ]
+        )
         return instance
+
+
+class SaveFavoriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FavoriteRecipes
+        fields = '__all__'
+
+    def to_representation(self, instance):
+        return ShortRecipeSerializer(instance.recipe).data
+
+
+class SaveShoppingCartSerializer(SaveFavoriteSerializer):
+    class Meta:
+        model = ShoppingCart
+        fields = '__all__'
+
+
+class SaveSubscriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FollowRelationship
+        exclude = ['created_at']
+
+    def validate(self, data):
+        if data['from_user'] == data['to_user']:
+            raise serializers.ValidationError(
+                'Нельзя подписаться на самого себя!'
+            )
+        return data
+
+    def to_representation(self, instance):
+        return SubscriptionSerializer(
+            instance.to_user, context={'request': self.context.get('request')}
+        ).data

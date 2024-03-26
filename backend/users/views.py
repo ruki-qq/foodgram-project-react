@@ -1,48 +1,24 @@
 from django.contrib.auth import get_user_model
-from rest_framework import permissions, status, viewsets
+from django.shortcuts import get_object_or_404
+from djoser.views import UserViewSet
+from rest_framework import permissions
 from rest_framework.decorators import action
-from rest_framework.response import Response
 
 from api.v1.serializers import (
-    ChangePasswordSerializer,
+    SaveSubscriptionSerializer,
     SubscriptionSerializer,
     UserSerializer,
 )
+from core.utils import add_obj, remove_obj
 
 User = get_user_model()
 
 
-class UserModelViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-
-    @action(
-        detail=False,
-        methods=['get'],
-        url_path='me',
-        url_name='me',
-        permission_classes=[permissions.IsAuthenticated],
-    )
-    def get_myself_user(self, request):
-        serializer = self.get_serializer(request.user)
-        return Response(serializer.data)
-
-    @action(
-        detail=False,
-        methods=['post'],
-        url_path='set_password',
-        url_name='set_password',
-        permission_classes=[permissions.IsAuthenticated],
-    )
-    def change_password(self, request):
-        serializer = ChangePasswordSerializer(
-            data=request.data,
-            context={'request': request},
-        )
-        serializer.is_valid(raise_exception=True)
-        request.user.set_password(serializer.data.get('new_password'))
-        request.user.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+class UserModelViewSet(UserViewSet):
+    def get_permissions(self):
+        if self.action == 'me':
+            self.permission_classes = [permissions.IsAuthenticated]
+        return super().get_permissions()
 
     @action(
         detail=False,
@@ -62,45 +38,23 @@ class UserModelViewSet(viewsets.ModelViewSet):
 
     @action(
         detail=False,
-        methods=['post', 'delete'],
+        methods=['post'],
         url_path=r'(?P<user_id>\w+)/subscribe',
         url_name='subscribe',
         permission_classes=[permissions.IsAuthenticated],
     )
-    def sub_unsub_user(self, request, user_id):
-        user = request.user
-        follow_user = User.objects.filter(id=user_id).first()
-
-        if not follow_user:
-            return Response(
-                {'errors': f'Пользователь с id {user_id} не существует.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        if request.method == 'POST':
-            serializer = SubscriptionSerializer(
-                follow_user,
+    def sub_user(self, request, user_id):
+        get_object_or_404(User, id=user_id)
+        return add_obj(
+            SaveSubscriptionSerializer(
+                data={'from_user': request.user.id, 'to_user': user_id},
                 context={'request': request},
             )
-            if user.following.filter(id=user_id).exists() or user.id == int(
-                user_id
-            ):
-                return Response(
-                    {
-                        'errors': (
-                            'Вы уже подписаны на данного пользователя, либо'
-                            ' пытаетесь подписаться на самого себя!'
-                        )
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            request.user.following.add(user_id)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        )
 
-        if user.following.filter(id=user_id).exists():
-            request.user.following.remove(user_id)
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        return Response(
-            {'errors': 'Вы не подписаны на данного пользователя!'},
-            status=status.HTTP_400_BAD_REQUEST,
+    @sub_user.mapping.delete
+    def unsub_user(self, request, user_id):
+        get_object_or_404(User, id=user_id)
+        return remove_obj(
+            request.user.following, user_id, 'Пользователь в подписках'
         )
