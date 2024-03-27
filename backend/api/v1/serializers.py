@@ -4,10 +4,10 @@ from django.db.transaction import atomic
 from rest_framework import serializers
 
 from api.v1.mixins import CustomBase64ImageField
-from api.v1.utils import ingredientquantity_bulk_create
 from recipes.models import (
     FavoriteRecipes,
     Ingredient,
+    IngredientQuantity,
     Recipe,
     ShoppingCart,
     Tag,
@@ -215,6 +215,21 @@ class ReadRecipeSerializer(ShortRecipeSerializer):
 class WriteRecipeSerializer(ReadRecipeSerializer):
     """Serializer for saving and updating recipes."""
 
+    @staticmethod
+    def ingredientquantity_bulk_create(recipe, ingredients):
+        """Bulk creation for related ingredients."""
+
+        IngredientQuantity.objects.bulk_create(
+            [
+                IngredientQuantity(
+                    recipe=recipe,
+                    ingredient_id=ing['id'],
+                    amount=ing['amount'],
+                )
+                for ing in ingredients
+            ]
+        )
+
     @atomic
     def create(self, validated_data):
         request = self.context.get('request')
@@ -223,7 +238,7 @@ class WriteRecipeSerializer(ReadRecipeSerializer):
         recipe = Recipe(author=request.user, **validated_data)
         recipe.save()
         recipe.tags.set(tags)
-        ingredientquantity_bulk_create(recipe, ingredients)
+        self.ingredientquantity_bulk_create(recipe, ingredients)
         request.user.favorites.add(recipe.id)
         return recipe
 
@@ -234,7 +249,7 @@ class WriteRecipeSerializer(ReadRecipeSerializer):
             instance=instance, validated_data=validated_data
         )
         instance.ingredients.clear()
-        ingredientquantity_bulk_create(instance, ingredients)
+        self.ingredientquantity_bulk_create(instance, ingredients)
         return instance
 
 

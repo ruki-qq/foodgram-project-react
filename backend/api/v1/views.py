@@ -1,22 +1,75 @@
+from django.contrib.auth import get_user_model
 from django.db.models import Sum
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+from djoser.views import UserViewSet
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from api.v1.filters import IngredientFilter, RecipeFilter
+from api.v1.mixins import WriteMethodsMixinView
 from api.v1.permissions import IsOwnerOrReadOnly
 from api.v1.serializers import (
     IngredientSerializer,
     ReadRecipeSerializer,
     SaveFavoriteSerializer,
     SaveShoppingCartSerializer,
+    SaveSubscriptionSerializer,
+    SubscriptionSerializer,
     TagSerializer,
     WriteRecipeSerializer,
 )
-from api.v1.utils import add_obj, remove_obj
 from recipes.models import Ingredient, IngredientQuantity, Recipe, Tag
+
+User = get_user_model()
+
+
+class UserModelViewSet(WriteMethodsMixinView, UserViewSet):
+    def get_permissions(self):
+        if self.action == 'me':
+            self.permission_classes = [permissions.IsAuthenticated]
+        return super().get_permissions()
+
+    @action(
+        detail=False,
+        methods=['get'],
+        url_path='subscriptions',
+        url_name='subscriptions',
+        permission_classes=[permissions.IsAuthenticated],
+    )
+    def subscriptions_user(self, request):
+        queryset = request.user.following.all()
+        serializer = SubscriptionSerializer(
+            self.paginate_queryset(queryset),
+            many=True,
+            context={'request': request},
+        )
+        return self.get_paginated_response(serializer.data)
+
+    @action(
+        detail=False,
+        methods=['post'],
+        url_path=r'(?P<user_id>\w+)/subscribe',
+        url_name='subscribe',
+        permission_classes=[permissions.IsAuthenticated],
+    )
+    def sub_user(self, request, user_id):
+        get_object_or_404(User, id=user_id)
+        return self.add_obj(
+            SaveSubscriptionSerializer(
+                data={'from_user': request.user.id, 'to_user': user_id},
+                context={'request': request},
+            )
+        )
+
+    @sub_user.mapping.delete
+    def unsub_user(self, request, user_id):
+        get_object_or_404(User, id=user_id)
+        return self.remove_obj(
+            request.user.following, user_id, 'Пользователь в подписках'
+        )
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
@@ -34,7 +87,7 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
 
 
-class RecipeViewSet(viewsets.ModelViewSet):
+class RecipeViewSet(WriteMethodsMixinView, viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
     permission_classes = [IsOwnerOrReadOnly]
     filter_backends = [DjangoFilterBackend]
@@ -56,7 +109,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         permission_classes=[permissions.IsAuthenticated],
     )
     def add_favorite_recipe(self, request, recipe_id):
-        return add_obj(
+        return self.add_obj(
             SaveFavoriteSerializer(
                 data={'user': request.user.id, 'recipe': recipe_id}
             )
@@ -64,7 +117,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @add_favorite_recipe.mapping.delete
     def rm_favorite_recipe(self, request, recipe_id):
-        return remove_obj(
+        return self.remove_obj(
             request.user.favorites, recipe_id, 'Избранный рецепт'
         )
 
@@ -76,7 +129,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         permission_classes=[permissions.IsAuthenticated],
     )
     def add_shopping_cart(self, request, recipe_id):
-        return add_obj(
+        return self.add_obj(
             SaveShoppingCartSerializer(
                 data={'user': request.user.id, 'recipe': recipe_id}
             )
@@ -84,7 +137,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @add_shopping_cart.mapping.delete
     def rm_shopping_cart(self, request, recipe_id):
-        return remove_obj(
+        return self.remove_obj(
             request.user.shopping_cart, recipe_id, 'Рецепт в корзине покупок'
         )
 
