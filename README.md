@@ -4,14 +4,7 @@
 
 ### Domain address: https://rufoodgram.duckdns.org/
 
-### Credentials
-```
-  login(email): foodadmin@foodgram.com
-  password: J6JsJMXa
-```
-
 ## Description
-
 Foodgram is a web application designed for food enthusiasts to share and discover recipes. Users can create accounts to upload their own recipes, complete with ingredients, step-by-step instructions, and photos. Users can interact with recipes by saving them to their personal collections. Foodgram fosters a vibrant community of food lovers who exchange culinary ideas and inspiration.
 
 ## Usage
